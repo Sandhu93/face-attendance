@@ -23,8 +23,9 @@ class KioskApp(QtWidgets.QMainWindow):
         self.setCentralWidget(self.stack)
 
         # Simple alternating via F1/F2 (admin PIN should gate in production)
-        QtWidgets.QShortcut(QtCore.QKeySequence("F1"), self, activated=lambda: self.stack.setCurrentIndex(0))
-        QtWidgets.QShortcut(QtCore.QKeySequence("F2"), self, activated=lambda: self.stack.setCurrentIndex(1))
+        from PyQt6 import QtGui
+        QtGui.QShortcut(QtGui.QKeySequence("F1"), self, activated=lambda: self.stack.setCurrentIndex(0))
+        QtGui.QShortcut(QtGui.QKeySequence("F2"), self, activated=lambda: self.stack.setCurrentIndex(1))
 
 
 def run():
@@ -35,4 +36,3 @@ def run():
     win = KioskApp(cfg)
     win.show()
     app.exec()
-

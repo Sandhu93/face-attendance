@@ -16,9 +16,12 @@ class EnrollView(QtWidgets.QWidget):
         self.pipeline = FacePipeline(cfg, db)
         self.video = None
 
+        # Left: live camera preview
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.label.setMinimumSize(640, 480)
+
+        # Right: scrollable panel
         self.thumb = QtWidgets.QLabel()
         self.thumb.setFixedSize(160, 160)
         self.thumb.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -43,36 +46,35 @@ class EnrollView(QtWidgets.QWidget):
 
         self.msg = QtWidgets.QLabel()
 
-        # Right panel with thumbnail and hints
         self.hints = QtWidgets.QLabel(
-            "Enroll Mode\n- Capture 5–10 times\n- Vary angle/lighting\n- Keep face centered\n- Ensure sharpness"
-        )
-        self.hints.setStyleSheet("color:#ccc")
-        self.hints.setText(
             "Enroll Mode\n- Capture 5-10 times\n- Vary angle/lighting\n- Keep face centered\n- Ensure sharpness"
         )
+        self.hints.setStyleSheet("color:#ccc")
 
-        right = QtWidgets.QVBoxLayout()
-        right.addWidget(QtWidgets.QLabel("Last Capture:"))
-        right.addWidget(self.thumb)
-        right.addSpacing(8)
-        right.addWidget(self.hints)
-        right.addStretch(1)
+        right_widget = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(right_widget)
+        right_layout.addLayout(form)
+        right_layout.addWidget(self.btn_capture)
+        right_layout.addWidget(self.btn_save)
+        right_layout.addWidget(self.msg)
+        right_layout.addSpacing(8)
+        right_layout.addWidget(QtWidgets.QLabel("Last Capture:"))
+        right_layout.addWidget(self.thumb)
+        right_layout.addSpacing(8)
+        right_layout.addWidget(self.hints)
+        right_layout.addStretch(1)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(right_widget)
+        scroll.setMinimumWidth(360)
 
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self.label, stretch=3)
-        top.addLayout(right, stretch=1)
+        top.addWidget(scroll, stretch=2)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(top)
-        layout.addLayout(form)
-        layout.addWidget(self.btn_capture)
-        layout.addWidget(self.btn_save)
-        layout.addWidget(self.msg)
-        right.insertLayout(0, form)
-        right.insertWidget(1, self.btn_capture)
-        right.insertWidget(2, self.btn_save)
-        right.insertWidget(3, self.msg)
 
         self.templates: List[np.ndarray] = []
         self.required_captures = 5
@@ -111,17 +113,11 @@ class EnrollView(QtWidgets.QWidget):
     def _on_timer(self):
         ok, frame = self.video.read() if self.video is not None else (False, None)
         if ok:
-            # Draw detection box for alignment help
             det = self.pipeline.detect_best(frame)
             disp = frame.copy()
             text = f"Captured {len(self.templates)}/{self.target_captures}  |  Need >= {self.required_captures} before Save"
-            text = (
-                f"Captured {len(self.templates)}/{self.target_captures}"
-                f"  |  Need ≥{self.required_captures} before Save"
-            )
             if det:
                 x, y, w, h = det.bbox
-                # Quality indicator
                 q_ok = self.pipeline.quality_ok(frame, det)
                 color = (0, 255, 0) if q_ok else (0, 0, 255)
                 cv2.rectangle(disp, (x, y), (x + w, y + h), color, 2)
@@ -217,3 +213,4 @@ class EnrollView(QtWidgets.QWidget):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
         cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
         return cap
+

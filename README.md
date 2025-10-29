@@ -60,7 +60,20 @@ Security & Privacy
 
 Next Steps
 - See config defaults in smart_kiosk/app/config.py; override with /etc/smart-kiosk/config.yaml.
-- To enable NCNN/EdgeTPU, place models under models/assets/ and set backend in config.
+- To enable OpenCV DNN detector, download the ResNet SSD model into `smart_kiosk/models/assets/` and set `backend.face_backend: opencv_dnn` in config.
+  - Files required:
+    - `deploy.prototxt`
+    - `res10_300x300_ssd_iter_140000.caffemodel`
+  - Example (on Pi):
+    - `mkdir -p smart_kiosk/models/assets`
+    - `wget -O smart_kiosk/models/assets/deploy.prototxt https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt`
+    - `wget -O smart_kiosk/models/assets/res10_300x300_ssd_iter_140000.caffemodel https://github.com/opencv/opencv_3rdparty/raw/dnn_samples_face_detector_20170830/res10_300x300_ssd_iter_140000.caffemodel`
+  - Then set in `/etc/smart-kiosk/config.yaml`:
+    ```
+    backend:
+      face_backend: opencv_dnn
+    ```
+  - The code falls back to Haar if the files are missing.
 
 License
 Apache-2.0

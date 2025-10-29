@@ -83,6 +83,7 @@ class EnrollView(QtWidgets.QWidget):
 
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self._on_timer)
+        self.last_frame: np.ndarray | None = None
 
     def closeEvent(self, e: QtGui.QCloseEvent) -> None:
         try:
@@ -113,6 +114,11 @@ class EnrollView(QtWidgets.QWidget):
     def _on_timer(self):
         ok, frame = self.video.read() if self.video is not None else (False, None)
         if ok:
+            # cache latest frame so capture can use a stable image
+            try:
+                self.last_frame = frame.copy()
+            except Exception:
+                self.last_frame = frame
             det = self.pipeline.detect_best(frame)
             disp = frame.copy()
             text = f"Captured {len(self.templates)}/{self.target_captures}  |  Need >= {self.required_captures} before Save"
@@ -144,8 +150,28 @@ class EnrollView(QtWidgets.QWidget):
         self.label.setPixmap(target)
 
     def on_capture(self):
-        ok, frame = self.video.read()
-        if not ok:
+        # Prefer the last frame captured by the timer to avoid concurrent reads
+        frame = None
+        if self.last_frame is not None:
+            try:
+                frame = self.last_frame.copy()
+            except Exception:
+                frame = self.last_frame
+        else:
+            if self.timer.isActive():
+                self.timer.stop()
+            ok, frm = self.video.read() if self.video is not None else (False, None)
+            if ok:
+                # grab an extra frame to ensure freshness
+                for _ in range(2):
+                    ok2, frm2 = self.video.read()
+                    if ok2:
+                        frm = frm2
+            frame = frm
+            # resume timer
+            self.timer.start(30)
+
+        if frame is None or frame.size == 0:
             self.msg.setText("Camera error")
             return
         if len(self.templates) >= self.target_captures:

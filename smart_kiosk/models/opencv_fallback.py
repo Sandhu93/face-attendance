@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from .base import Detection, FaceDetector, FaceAligner, FaceEmbedder, LivenessChecker, LivenessResult
 
 

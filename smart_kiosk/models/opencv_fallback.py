@@ -13,6 +13,7 @@ class HaarFaceDetector(FaceDetector):
             base = cv2.data.haarcascades
             names = [
                 "haarcascade_frontalface_default.xml",
+                "haarcascade_frontalface_alt.xml",
                 "haarcascade_frontalface_alt2.xml",
                 "haarcascade_profileface.xml",
             ]
@@ -34,24 +35,44 @@ class HaarFaceDetector(FaceDetector):
             gray = cv2.equalizeHist(gray)
         except Exception:
             pass
-        params = dict(scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
+        
+        # Try multiple parameter sets for better detection, especially for angled faces
+        param_sets = [
+            # More lenient parameters for angled faces
+            dict(scaleFactor=1.1, minNeighbors=2, minSize=(30, 30)),
+            # Original parameters
+            dict(scaleFactor=1.05, minNeighbors=3, minSize=(40, 40)),
+            # Very strict parameters for high quality detection
+            dict(scaleFactor=1.03, minNeighbors=4, minSize=(50, 50)),
+        ]
+        
         dets: List[Detection] = []
         H, W = gray.shape[:2]
-        for cas in self.cascades:
-            faces = cas.detectMultiScale(gray, **params)
-            for (x, y, w, h) in faces:
-                score = float(min(1.0, (w * h) / (H * W) * 10.0))
-                dets.append(Detection((int(x), int(y), int(w), int(h)), score))
+        
+        # Try detection with different parameter sets
+        for params in param_sets:
+            for cas in self.cascades:
+                faces = cas.detectMultiScale(gray, **params)
+                for (x, y, w, h) in faces:
+                    score = float(min(1.0, (w * h) / (H * W) * 10.0))
+                    dets.append(Detection((int(x), int(y), int(w), int(h)), score))
+            # If we found faces with current params, break to avoid duplicates
+            if dets:
+                break
+                
         # Fallback: also try mirrored image to catch slight yaw
         if not dets:
             try:
                 gray_flip = cv2.flip(gray, 1)
-                for cas in self.cascades:
-                    faces = cas.detectMultiScale(gray_flip, **params)
-                    for (x, y, w, h) in faces:
-                        x_m = W - (x + w)
-                        score = float(min(1.0, (w * h) / (H * W) * 10.0))
-                        dets.append(Detection((int(x_m), int(y), int(w), int(h)), score))
+                for params in param_sets:
+                    for cas in self.cascades:
+                        faces = cas.detectMultiScale(gray_flip, **params)
+                        for (x, y, w, h) in faces:
+                            x_m = W - (x + w)
+                            score = float(min(1.0, (w * h) / (H * W) * 10.0))
+                            dets.append(Detection((int(x_m), int(y), int(w), int(h)), score))
+                    if dets:
+                        break
             except Exception:
                 pass
         # Final fallback: simple skin-color blob finder to provide a usable ROI
@@ -67,8 +88,8 @@ class HaarFaceDetector(FaceDetector):
         try:
             ycrcb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2YCrCb)
             Y, Cr, Cb = cv2.split(ycrcb)
-            # Broad skin-color range in YCrCb
-            mask = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+            # Broader skin-color range in YCrCb for better detection at angles
+            mask = cv2.inRange(ycrcb, (0, 125, 70), (255, 180, 135))
             # Smooth and morph to reduce noise
             mask = cv2.GaussianBlur(mask, (5, 5), 0)
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
@@ -79,10 +100,12 @@ class HaarFaceDetector(FaceDetector):
                 return None
             cnt = max(cnts, key=cv2.contourArea)
             x, y, w, h = cv2.boundingRect(cnt)
-            if w < 60 or h < 60:
+            # More lenient size requirements
+            if w < 50 or h < 50:
                 return None
             ar = w / (h + 1e-6)
-            if ar < 0.6 or ar > 1.8:
+            # More lenient aspect ratio for angled faces
+            if ar < 0.5 or ar > 2.0:
                 return None
             H, W = frame_bgr.shape[:2]
             score = float(min(1.0, (w * h) / (H * W) * 10.0))
@@ -156,22 +179,22 @@ class LightLiveness(LivenessChecker):
         total_energy = mag.sum() + 1e-6
         hf_ratio = 1.0 - float(center_energy / total_energy)
 
-        # Face size proxy
-        size_ok = (det.bbox[2] >= 120) and (det.bbox[3] >= 120)
+        # Face size proxy - more lenient for angled faces
+        size_ok = (det.bbox[2] >= 80) and (det.bbox[3] >= 80)
 
-        # Heuristic score
+        # Heuristic score - more forgiving thresholds
         score = 0.0
         expl = []
-        if sharp > 80:
+        if sharp > 50:  # Reduced from 80
             score += 0.35
             expl.append("sharp")
-        if hf_ratio > 0.88:
+        if hf_ratio > 0.85:  # Reduced from 0.88
             score += 0.35
             expl.append("texture")
         if size_ok:
             score += 0.3
             expl.append("size")
-        is_live = score >= 0.6
+        is_live = score >= 0.5  # Reduced from 0.6
         return LivenessResult(score, is_live, ",".join(expl) or "low confidence")
 
 

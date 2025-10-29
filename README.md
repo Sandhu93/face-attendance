@@ -29,6 +29,7 @@ Raspberry Pi Install
 - Install Python deps (Pi-specific):
   - `pip install --upgrade pip`
   - `pip install -r requirements-pi.txt`
+  - Note: requirements-pi pins `numpy<1.27` to avoid ABI conflicts with system `scipy` when using `--system-site-packages`.
 - Configure and run:
   - `sudo mkdir -p /etc/smart-kiosk /var/lib/smart-kiosk && sudo chown -R $USER:$USER /var/lib/smart-kiosk`
   - Create `/etc/smart-kiosk/config.yaml` or set `SMART_KIOSK_CONFIG`

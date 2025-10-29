@@ -3,7 +3,8 @@
 # Before using this file, run:
 #   sudo apt update && sudo apt install -y python3-pyqt6 python3-opencv libgl1 libglib2.0-0 v4l-utils
 
-numpy>=1.25
+# Match Debian/RPi SciPy ABI; avoid numpy>=1.27 in system-site-packages venvs
+numpy>=1.25,<1.27
 fastapi>=0.110
 uvicorn[standard]>=0.23
 pydantic>=2.6
@@ -15,4 +16,3 @@ requests>=2.31
 tenacity>=8.2
 psutil>=5.9
 pytest>=7.4
-

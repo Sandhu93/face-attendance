@@ -48,6 +48,9 @@ class EnrollView(QtWidgets.QWidget):
             "Enroll Mode\n- Capture 5–10 times\n- Vary angle/lighting\n- Keep face centered\n- Ensure sharpness"
         )
         self.hints.setStyleSheet("color:#ccc")
+        self.hints.setText(
+            "Enroll Mode\n- Capture 5-10 times\n- Vary angle/lighting\n- Keep face centered\n- Ensure sharpness"
+        )
 
         right = QtWidgets.QVBoxLayout()
         right.addWidget(QtWidgets.QLabel("Last Capture:"))
@@ -66,6 +69,10 @@ class EnrollView(QtWidgets.QWidget):
         layout.addWidget(self.btn_capture)
         layout.addWidget(self.btn_save)
         layout.addWidget(self.msg)
+        right.insertLayout(0, form)
+        right.insertWidget(1, self.btn_capture)
+        right.insertWidget(2, self.btn_save)
+        right.insertWidget(3, self.msg)
 
         self.templates: List[np.ndarray] = []
         self.required_captures = 5
@@ -107,6 +114,7 @@ class EnrollView(QtWidgets.QWidget):
             # Draw detection box for alignment help
             det = self.pipeline.detect_best(frame)
             disp = frame.copy()
+            text = f"Captured {len(self.templates)}/{self.target_captures}  |  Need >= {self.required_captures} before Save"
             text = (
                 f"Captured {len(self.templates)}/{self.target_captures}"
                 f"  |  Need ≥{self.required_captures} before Save"

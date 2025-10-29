@@ -152,8 +152,24 @@ class EnrollView(QtWidgets.QWidget):
             self.msg.setText(f"Reached target of {self.target_captures} captures")
             return
         det = self.pipeline.detect_best(frame)
-        if not det or not self.pipeline.quality_ok(frame, det):
-            self.msg.setText("Face quality too low")
+        if not det:
+            self.msg.setText("No face detected. Center your face and move closer.")
+            return
+        # Prepare aligned thumbnail first so user sees what was captured even on failure
+        aligned_rgb = self.pipeline.aligner.align(frame, det)
+        # Keep buffer alive to avoid black images
+        self._thumb_buf = aligned_rgb.copy()
+        qimg = QtGui.QImage(
+            self._thumb_buf.data,
+            self._thumb_buf.shape[1],
+            self._thumb_buf.shape[0],
+            self._thumb_buf.shape[1] * 3,
+            QtGui.QImage.Format.Format_RGB888,
+        ).copy()
+        self.thumb.setPixmap(QtGui.QPixmap.fromImage(qimg).scaled(self.thumb.size(), QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+
+        if not self.pipeline.quality_ok(frame, det):
+            self.msg.setText("Face quality too low. Improve lighting or move closer.")
             return
         liv = self.pipeline.liveness.passive(frame, det)
         if not liv.is_live:
@@ -161,16 +177,6 @@ class EnrollView(QtWidgets.QWidget):
             return
         emb = self.pipeline.embed(frame, det)
         self.templates.append(emb)
-        # Show last captured thumbnail (aligned face)
-        aligned_rgb = self.pipeline.aligner.align(frame, det)
-        thumb = QtGui.QImage(
-            aligned_rgb.data,
-            aligned_rgb.shape[1],
-            aligned_rgb.shape[0],
-            aligned_rgb.shape[1] * 3,
-            QtGui.QImage.Format.Format_RGB888,
-        )
-        self.thumb.setPixmap(QtGui.QPixmap.fromImage(thumb).scaled(self.thumb.size(), QtCore.Qt.AspectRatioMode.KeepAspectRatio))
         self.msg.setText(f"Captured {len(self.templates)}/{self.target_captures}")
         self._update_buttons()
 
@@ -213,4 +219,3 @@ class EnrollView(QtWidgets.QWidget):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
         cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
         return cap
-

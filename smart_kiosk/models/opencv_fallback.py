@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from typing import List, Tuple
 from .base import Detection, FaceDetector, FaceAligner, FaceEmbedder, LivenessChecker, LivenessResult
@@ -53,8 +54,41 @@ class HaarFaceDetector(FaceDetector):
                         dets.append(Detection((int(x_m), int(y), int(w), int(h)), score))
             except Exception:
                 pass
+        # Final fallback: simple skin-color blob finder to provide a usable ROI
+        if not dets:
+            fb = self._skin_fallback(frame_bgr)
+            if fb is not None:
+                dets.append(fb)
         dets.sort(key=lambda d: d.bbox[2] * d.bbox[3], reverse=True)
         return dets
+
+    def _skin_fallback(self, frame_bgr: np.ndarray) -> Optional[Detection]:
+        cv2 = self._cv2
+        try:
+            ycrcb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2YCrCb)
+            Y, Cr, Cb = cv2.split(ycrcb)
+            # Broad skin-color range in YCrCb
+            mask = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+            # Smooth and morph to reduce noise
+            mask = cv2.GaussianBlur(mask, (5, 5), 0)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+            cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not cnts:
+                return None
+            cnt = max(cnts, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(cnt)
+            if w < 60 or h < 60:
+                return None
+            ar = w / (h + 1e-6)
+            if ar < 0.6 or ar > 1.8:
+                return None
+            H, W = frame_bgr.shape[:2]
+            score = float(min(1.0, (w * h) / (H * W) * 10.0))
+            return Detection((int(x), int(y), int(w), int(h)), score)
+        except Exception:
+            return None
 
 
 class SimpleAligner(FaceAligner):

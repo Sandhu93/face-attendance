@@ -17,7 +17,7 @@ class AttendanceView(QtWidgets.QWidget):
         self.db = db
         self.pipeline = FacePipeline(cfg, db)
 
-        self.video = self._open_camera(cfg)
+        self.video = None
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -27,16 +27,36 @@ class AttendanceView(QtWidgets.QWidget):
 
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self._on_timer)
-        self.timer.start(30)
 
         self.last_employee: Optional[str] = None
 
     def closeEvent(self, e: QtGui.QCloseEvent) -> None:
         try:
-            self.video.release()
+            if self.video is not None:
+                self.video.release()
         except Exception:
             pass
         return super().closeEvent(e)
+
+    def showEvent(self, e: QtGui.QShowEvent) -> None:
+        # Acquire camera when this view is shown
+        if self.video is None:
+            self.video = self._open_camera(self.cfg)
+        if not self.timer.isActive():
+            self.timer.start(30)
+        return super().showEvent(e)
+
+    def hideEvent(self, e: QtGui.QHideEvent) -> None:
+        # Release camera to let other views use it
+        if self.timer.isActive():
+            self.timer.stop()
+        if self.video is not None:
+            try:
+                self.video.release()
+            except Exception:
+                pass
+            self.video = None
+        return super().hideEvent(e)
 
     def _on_timer(self):
         ok, frame = self.video.read() if self.video is not None else (False, None)

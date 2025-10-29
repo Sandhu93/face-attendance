@@ -32,7 +32,7 @@ class Thresholds:
     match_threshold: float = 0.48  # cosine distance (1 - cosine_similarity)
     liveness_threshold: float = 0.6
     quality_sharpness_min: float = 40.0
-    min_face_px: int = 120
+    min_face_px: int = 100
 
 
 @dataclass

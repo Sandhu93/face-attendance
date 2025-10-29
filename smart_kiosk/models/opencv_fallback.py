@@ -8,19 +8,51 @@ class HaarFaceDetector(FaceDetector):
         try:
             import cv2  # type: ignore
 
-            cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             self._cv2 = cv2
-            self.det = cv2.CascadeClassifier(cascade_path)
+            base = cv2.data.haarcascades
+            names = [
+                "haarcascade_frontalface_default.xml",
+                "haarcascade_frontalface_alt2.xml",
+                "haarcascade_profileface.xml",
+            ]
+            self.cascades = []
+            for n in names:
+                path = base + n
+                if os.path.exists(path):
+                    self.cascades.append(cv2.CascadeClassifier(path))
+            if not self.cascades:
+                raise RuntimeError("No Haar cascades found")
         except Exception as e:
             raise RuntimeError("OpenCV is required for HaarFaceDetector") from e
 
     def detect(self, frame_bgr: np.ndarray) -> List[Detection]:
-        gray = self._cv2.cvtColor(frame_bgr, self._cv2.COLOR_BGR2GRAY)
-        faces = self.det.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+        cv2 = self._cv2
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        # Normalize contrast for tougher lighting
+        try:
+            gray = cv2.equalizeHist(gray)
+        except Exception:
+            pass
+        params = dict(scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
         dets: List[Detection] = []
-        for (x, y, w, h) in faces:
-            score = float(min(1.0, (w * h) / (frame_bgr.shape[0] * frame_bgr.shape[1]) * 10.0))
-            dets.append(Detection((int(x), int(y), int(w), int(h)), score))
+        H, W = gray.shape[:2]
+        for cas in self.cascades:
+            faces = cas.detectMultiScale(gray, **params)
+            for (x, y, w, h) in faces:
+                score = float(min(1.0, (w * h) / (H * W) * 10.0))
+                dets.append(Detection((int(x), int(y), int(w), int(h)), score))
+        # Fallback: also try mirrored image to catch slight yaw
+        if not dets:
+            try:
+                gray_flip = cv2.flip(gray, 1)
+                for cas in self.cascades:
+                    faces = cas.detectMultiScale(gray_flip, **params)
+                    for (x, y, w, h) in faces:
+                        x_m = W - (x + w)
+                        score = float(min(1.0, (w * h) / (H * W) * 10.0))
+                        dets.append(Detection((int(x_m), int(y), int(w), int(h)), score))
+            except Exception:
+                pass
         dets.sort(key=lambda d: d.bbox[2] * d.bbox[3], reverse=True)
         return dets
 

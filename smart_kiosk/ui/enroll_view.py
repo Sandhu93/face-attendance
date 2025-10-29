@@ -121,6 +121,17 @@ class EnrollView(QtWidgets.QWidget):
                 self.last_frame = frame
             det = self.pipeline.detect_best(frame)
             disp = frame.copy()
+            # Draw rule-of-thirds gridlines to assist alignment
+            try:
+                gh, gw = disp.shape[:2]
+                v1, v2 = gw // 3, 2 * gw // 3
+                h1, h2 = gh // 3, 2 * gh // 3
+                cv2.line(disp, (v1, 0), (v1, gh), (255, 255, 255), 1)
+                cv2.line(disp, (v2, 0), (v2, gh), (255, 255, 255), 1)
+                cv2.line(disp, (0, h1), (gw, h1), (255, 255, 255), 1)
+                cv2.line(disp, (0, h2), (gw, h2), (255, 255, 255), 1)
+            except Exception:
+                pass
             text = f"Captured {len(self.templates)}/{self.target_captures}  |  Need >= {self.required_captures} before Save"
             if det:
                 x, y, w, h = det.bbox
@@ -174,6 +185,25 @@ class EnrollView(QtWidgets.QWidget):
         if frame is None or frame.size == 0:
             self.msg.setText("Camera error")
             return
+        # Always update last-capture thumbnail from the pressed frame (center crop), even if detection fails
+        try:
+            ch, cw = frame.shape[:2]
+            side = min(ch, cw)
+            cy0 = (ch - side) // 2
+            cx0 = (cw - side) // 2
+            crop = frame[cy0:cy0 + side, cx0:cx0 + side]
+            rgb_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+            self._thumb_buf = rgb_crop.copy()
+            qimg_sq = QtGui.QImage(
+                self._thumb_buf.data,
+                self._thumb_buf.shape[1],
+                self._thumb_buf.shape[0],
+                self._thumb_buf.shape[1] * 3,
+                QtGui.QImage.Format.Format_RGB888,
+            ).copy()
+            self.thumb.setPixmap(QtGui.QPixmap.fromImage(qimg_sq).scaled(self.thumb.size(), QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+        except Exception:
+            pass
         if len(self.templates) >= self.target_captures:
             self.msg.setText(f"Reached target of {self.target_captures} captures")
             return
@@ -181,7 +211,7 @@ class EnrollView(QtWidgets.QWidget):
         if not det:
             self.msg.setText("No face detected. Center your face and move closer.")
             return
-        # Prepare aligned thumbnail first so user sees what was captured even on failure
+        # Override thumbnail with aligned face when detection exists
         aligned_rgb = self.pipeline.aligner.align(frame, det)
         # Keep buffer alive to avoid black images
         self._thumb_buf = aligned_rgb.copy()

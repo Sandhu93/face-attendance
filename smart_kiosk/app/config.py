@@ -15,8 +15,8 @@ DEFAULT_CONFIG_PATHS = [
 @dataclass
 class CameraConfig:
     device_index: int = 0
-    width: int = 1280
-    height: int = 720
+    width: int = 640
+    height: int = 480
     fps: int = 30
 
 
@@ -97,4 +97,3 @@ def load_config() -> AppConfig:
     os.makedirs(cfg.paths.data_dir, exist_ok=True)
     os.makedirs(cfg.paths.photo_cache_dir, exist_ok=True)
     return cfg
-

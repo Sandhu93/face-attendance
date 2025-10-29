@@ -18,6 +18,7 @@ class EnrollView(QtWidgets.QWidget):
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.label.setMinimumSize(640, 480)
 
         form = QtWidgets.QFormLayout()
         self.e_id = QtWidgets.QLineEdit()
@@ -74,7 +75,12 @@ class EnrollView(QtWidgets.QWidget):
         painter.setFont(QtGui.QFont("Arial", 18))
         painter.drawText(20, 40, text)
         painter.end()
-        self.label.setPixmap(pix)
+        target = pix.scaled(
+            self.label.size(),
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        self.label.setPixmap(target)
 
     def on_capture(self):
         ok, frame = self.video.read()

@@ -21,6 +21,7 @@ class AttendanceView(QtWidgets.QWidget):
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.label.setMinimumSize(640, 480)
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.label)
 
@@ -71,7 +72,13 @@ class AttendanceView(QtWidgets.QWidget):
         painter.setFont(QtGui.QFont("Arial", 18))
         painter.drawText(20, 40, text)
         painter.end()
-        self.label.setPixmap(pix)
+        # Scale pixmap to fit label while keeping aspect ratio
+        target = pix.scaled(
+            self.label.size(),
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        self.label.setPixmap(target)
 
     def _open_camera(self, cfg: AppConfig):
         # Prefer V4L2 backend to avoid GStreamer issues on Pi

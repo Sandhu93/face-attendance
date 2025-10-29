@@ -1,0 +1,15 @@
+[Unit]
+Description=Smart Kiosk API
+After=network-online.target
+
+[Service]
+Type=simple
+Environment=SMART_KIOSK_CONFIG=/etc/smart-kiosk/config.yaml
+ExecStart=/usr/bin/python3 -m smart_kiosk.cli api --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+WorkingDirectory=/opt/smart-kiosk
+
+[Install]
+WantedBy=multi-user.target
+

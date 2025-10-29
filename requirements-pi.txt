@@ -1,0 +1,18 @@
+# Python-only deps for Raspberry Pi installs.
+# Install PyQt6 and OpenCV from apt, not pip, to avoid heavy builds.
+# Before using this file, run:
+#   sudo apt update && sudo apt install -y python3-pyqt6 python3-opencv libgl1 libglib2.0-0 v4l-utils
+
+numpy>=1.25
+fastapi>=0.110
+uvicorn[standard]>=0.23
+pydantic>=2.6
+typer>=0.12
+python-multipart>=0.0.9
+PyYAML>=6.0
+orjson>=3.9
+requests>=2.31
+tenacity>=8.2
+psutil>=5.9
+pytest>=7.4
+

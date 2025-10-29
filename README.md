@@ -20,6 +20,21 @@ Quick Start (Dev)
 2) pip install -r requirements.txt
 3) python -m smart_kiosk.cli run
 
+Raspberry Pi Install
+- Install system packages (PyQt6/OpenCV via apt):
+  - `sudo apt update && sudo apt install -y python3-pyqt6 python3-opencv libgl1 libglib2.0-0 v4l-utils`
+- Create venv that can see system packages:
+  - `python3 -m venv --system-site-packages venv`
+  - `source venv/bin/activate`
+- Install Python deps (Pi-specific):
+  - `pip install --upgrade pip`
+  - `pip install -r requirements-pi.txt`
+- Configure and run:
+  - `sudo mkdir -p /etc/smart-kiosk /var/lib/smart-kiosk && sudo chown -R $USER:$USER /var/lib/smart-kiosk`
+  - Create `/etc/smart-kiosk/config.yaml` or set `SMART_KIOSK_CONFIG`
+  - `SMART_KIOSK_CONFIG=/etc/smart-kiosk/config.yaml python -m smart_kiosk.cli run`
+
+
 Project Layout
 - app/: core config, utils, threading
 - db/: SQLite access and migrations

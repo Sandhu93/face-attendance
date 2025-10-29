@@ -9,10 +9,10 @@ from smart_kiosk.db import Database
 from smart_kiosk.models import (
     Detection,
     HaarFaceDetector,
+    DNNFaceDetector,
     SimpleAligner,
     DCTEmbedder,
     LightLiveness,
-    DnnFaceDetector,
 )
 
 
@@ -33,10 +33,8 @@ class FacePipeline:
         self.detector = None
         if getattr(self.cfg.backend, "face_backend", "opencv").lower() in ("opencv_dnn", "dnn"):
             assets = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models", "assets"))
-            proto = os.path.join(assets, "deploy.prototxt")
-            caffemodel = os.path.join(assets, "res10_300x300_ssd_iter_140000.caffemodel")
             try:
-                self.detector = DnnFaceDetector(proto, caffemodel, conf_threshold=0.45)
+                self.detector = DNNFaceDetector(model_dir=assets)
             except Exception:
                 self.detector = None
         if self.detector is None:

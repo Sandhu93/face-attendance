@@ -1,6 +1,5 @@
 from .base import Detection, LivenessResult, FaceDetector, FaceAligner, FaceEmbedder, LivenessChecker
-from .opencv_fallback import HaarFaceDetector, SimpleAligner, DCTEmbedder, LightLiveness
-from .opencv_dnn import DnnFaceDetector
+from .opencv_fallback import HaarFaceDetector, DNNFaceDetector, SimpleAligner, DCTEmbedder, LightLiveness
 
 __all__ = [
     "Detection",
@@ -10,8 +9,8 @@ __all__ = [
     "FaceEmbedder",
     "LivenessChecker",
     "HaarFaceDetector",
+    "DNNFaceDetector",
     "SimpleAligner",
     "DCTEmbedder",
     "LightLiveness",
-    "DnnFaceDetector",
 ]

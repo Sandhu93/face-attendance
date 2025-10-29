@@ -114,6 +114,69 @@ class HaarFaceDetector(FaceDetector):
             return None
 
 
+class DNNFaceDetector(FaceDetector):
+    def __init__(self, model_dir="smart_kiosk/models/assets"):
+        try:
+            import cv2  # type: ignore
+            self._cv2 = cv2
+            
+            # Load DNN model files
+            prototxt_path = os.path.join(model_dir, "deploy.prototxt")
+            model_path = os.path.join(model_dir, "res10_300x300_ssd_iter_140000.caffemodel")
+            
+            if not os.path.exists(prototxt_path) or not os.path.exists(model_path):
+                raise RuntimeError(f"DNN model files not found in {model_dir}")
+            
+            self.net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
+            self.confidence_threshold = 0.5
+            
+        except Exception as e:
+            raise RuntimeError("OpenCV DNN is required for DNNFaceDetector") from e
+
+    def detect(self, frame_bgr: np.ndarray) -> List[Detection]:
+        cv2 = self._cv2
+        
+        # Get frame dimensions
+        (h, w) = frame_bgr.shape[:2]
+        
+        # Create blob from image
+        blob = cv2.dnn.blobFromImage(cv2.resize(frame_bgr, (300, 300)), 1.0,
+                                   (300, 300), (104.0, 177.0, 123.0))
+        
+        # Pass blob through network
+        self.net.setInput(blob)
+        detections = self.net.forward()
+        
+        dets: List[Detection] = []
+        
+        # Loop over the detections
+        for i in range(0, detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            
+            # Filter out weak detections
+            if confidence > self.confidence_threshold:
+                # Compute coordinates of bounding box
+                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                (x, y, x1, y1) = box.astype("int")
+                
+                # Ensure coordinates are within frame bounds
+                x = max(0, x)
+                y = max(0, y)
+                x1 = min(w, x1)
+                y1 = min(h, y1)
+                
+                width = x1 - x
+                height = y1 - y
+                
+                # Only add valid detections
+                if width > 20 and height > 20:
+                    dets.append(Detection((int(x), int(y), int(width), int(height)), float(confidence)))
+        
+        # Sort by confidence (highest first)
+        dets.sort(key=lambda d: d.score, reverse=True)
+        return dets
+
+
 class SimpleAligner(FaceAligner):
     def align(self, frame_bgr: np.ndarray, det: Detection) -> np.ndarray:
         x, y, w, h = det.bbox

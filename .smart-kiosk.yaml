@@ -1,0 +1,26 @@
+backend:
+  face_backend: opencv_dnn
+  liveness_backend: light
+  threads: 4
+
+camera:
+  device_index: 0
+  width: 640
+  height: 480
+  fps: 30
+
+thresholds:
+  match_threshold: 0.48
+  liveness_threshold: 0.6
+  quality_sharpness_min: 25.0
+  min_face_px: 80
+
+paths:
+  data_dir: "./data"
+  db_path: "./data/attendance.db"
+  photo_cache_dir: "./data/photos"
+
+device:
+  device_id: "windows-kiosk"
+  location: "Office"
+  tz: "UTC"

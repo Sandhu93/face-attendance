@@ -14,7 +14,7 @@ class EnrollView(QtWidgets.QWidget):
         self.cfg = cfg
         self.db = db
         self.pipeline = FacePipeline(cfg, db)
-        self.video = cv2.VideoCapture(cfg.camera.device_index)
+        self.video = self._open_camera(cfg)
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -109,3 +109,17 @@ class EnrollView(QtWidgets.QWidget):
         self.templates.clear()
         self.msg.setText("Saved employee")
 
+    def _open_camera(self, cfg: AppConfig):
+        cap = cv2.VideoCapture(cfg.camera.device_index, cv2.CAP_V4L2)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
+        cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
+        ok, _ = cap.read()
+        if ok:
+            return cap
+        cap.release()
+        cap = cv2.VideoCapture(cfg.camera.device_index)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
+        cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
+        return cap

@@ -17,10 +17,7 @@ class AttendanceView(QtWidgets.QWidget):
         self.db = db
         self.pipeline = FacePipeline(cfg, db)
 
-        self.video = cv2.VideoCapture(cfg.camera.device_index)
-        self.video.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.width)
-        self.video.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
-        self.video.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
+        self.video = self._open_camera(cfg)
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -41,7 +38,7 @@ class AttendanceView(QtWidgets.QWidget):
         return super().closeEvent(e)
 
     def _on_timer(self):
-        ok, frame = self.video.read()
+        ok, frame = self.video.read() if self.video is not None else (False, None)
         if not ok:
             return
         res = self.pipeline.identify(frame)
@@ -76,3 +73,19 @@ class AttendanceView(QtWidgets.QWidget):
         painter.end()
         self.label.setPixmap(pix)
 
+    def _open_camera(self, cfg: AppConfig):
+        # Prefer V4L2 backend to avoid GStreamer issues on Pi
+        cap = cv2.VideoCapture(cfg.camera.device_index, cv2.CAP_V4L2)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
+        cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
+        ok, _ = cap.read()
+        if ok:
+            return cap
+        # Fallback to default backend
+        cap.release()
+        cap = cv2.VideoCapture(cfg.camera.device_index)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.camera.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.camera.height)
+        cap.set(cv2.CAP_PROP_FPS, cfg.camera.fps)
+        return cap

@@ -23,6 +23,9 @@ Quick Start (Dev)
 Raspberry Pi Install
 - Install system packages (PyQt6/OpenCV via apt):
   - `sudo apt update && sudo apt install -y python3-pyqt6 python3-opencv libgl1 libglib2.0-0 v4l-utils`
+- If your desktop session is Wayland, install Wayland plugin or force XCB:
+  - `sudo apt install -y qt6-wayland qt6-gtk-platformtheme`
+  - Or set `QT_QPA_PLATFORM=xcb` when launching the app.
 - Create venv that can see system packages:
   - `python3 -m venv --system-site-packages venv`
   - `source venv/bin/activate`
@@ -34,6 +37,7 @@ Raspberry Pi Install
   - `sudo mkdir -p /etc/smart-kiosk /var/lib/smart-kiosk && sudo chown -R $USER:$USER /var/lib/smart-kiosk`
   - Create `/etc/smart-kiosk/config.yaml` or set `SMART_KIOSK_CONFIG`
   - `SMART_KIOSK_CONFIG=/etc/smart-kiosk/config.yaml python -m smart_kiosk.cli run`
+  - Tip: For OpenCV to prefer V4L2 (and avoid GStreamer warnings): `export OPENCV_VIDEOIO_PRIORITY_V4L2=1`
 
 
 Project Layout

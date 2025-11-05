@@ -24,12 +24,15 @@ class CameraConfig:
 class BackendConfig:
     face_backend: str = "opencv"  # opencv|ncnn|onnx|edgetpu
     liveness_backend: str = "light"
+    # Embedder backend: 'dct' (fallback) | 'onnx_arcface'
+    embedder_backend: str = "dct"
     threads: int = max(1, os.cpu_count() - 1 if os.cpu_count() else 1)
 
 
 @dataclass
 class Thresholds:
-    match_threshold: float = 0.48  # cosine distance (1 - cosine_similarity)
+    # Tightened threshold for more robust identity separation
+    match_threshold: float = 0.35  # cosine distance (1 - cosine_similarity)
     liveness_threshold: float = 0.6
     quality_sharpness_min: float = 25.0  # Reduced for angled faces
     min_face_px: int = 80  # Reduced minimum face size

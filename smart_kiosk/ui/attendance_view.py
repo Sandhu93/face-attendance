@@ -78,53 +78,61 @@ class AttendanceView(QtWidgets.QWidget):
             self._set_pixmap(disp, self._toast_text, pen_color=self._toast_color)
             return
 
-        res = self.pipeline.identify(frame)
-        if res.det is not None:
-            x, y, w, h = res.det.bbox
-            color = (0, 255, 0) if res.is_live else (0, 0, 255)
-            cv2.rectangle(disp, (x, y), (x + w, y + h), color, 2)
+        dets = self.pipeline.detect_all(frame)
         text = "Scanning..."
-        if res.employee_id and res.is_live and res.score <= self.cfg.thresholds.match_threshold:
-            # Determine event and create toast. Throttle duplicates for 3s per employee
-            if self._last_punch_emp == res.employee_id and (now - self._last_punch_ts) < 3.0:
-                # Still in cooldown; just show scanning
+        recognized_results = []
+        # Identify each detection and annotate
+        for det in dets:
+            res = self.pipeline.identify_det(frame, det)
+            x, y, w, h = det.bbox
+            color = (0, 255, 0) if (res.is_live and res.employee_id) else (0, 0, 255)
+            cv2.rectangle(disp, (x, y), (x + w, y + h), color, 2)
+            label = ""
+            if res.is_live and res.employee_id and res.score <= self.cfg.thresholds.match_threshold:
+                name = next((e['name'] for e in self.db.list_employees() if e['id'] == res.employee_id), res.employee_id)
+                label = f"{name} ({1.0 - res.score:.2f})"
+                recognized_results.append(res)
+            elif res.is_live:
+                label = f"Unknown ({res.liveness:.2f})"
+            else:
+                label = f"Not live ({res.liveness:.2f})"
+            try:
+                cv2.putText(disp, label, (x, max(0, y - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            except Exception:
+                pass
+
+        # Choose a single best recognition this frame for event/ toast handling
+        best = None
+        if recognized_results:
+            best = min(recognized_results, key=lambda r: r.score)
+        if best is not None:
+            if self._last_punch_emp == best.employee_id and (now - self._last_punch_ts) < 3.0:
                 self._set_pixmap(disp, text)
                 return
-            last = self.db.last_event_type_today(res.employee_id)
+            last = self.db.last_event_type_today(best.employee_id) if best.employee_id else None
             event_type = "OUT" if last == "IN" else "IN"
             # Persist event
-            self.db.add_event(res.employee_id, event_type, 1.0 - res.score, res.liveness, self.cfg.device.device_id)
-            self._last_punch_emp = res.employee_id
-            self._last_punch_ts = now
-            # Prepare toast data
-            name = next((e['name'] for e in self.db.list_employees() if e['id'] == res.employee_id), res.employee_id)
-            ts_str = QtCore.QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
-            self._toast_text = f"{name}  {event_type}  {ts_str}"
-            # Green for IN, Red for OUT
-            self._toast_color = (0, 200, 0) if event_type == "IN" else (0, 0, 200)
-            # Capture face thumbnail
-            if res.det is not None:
-                x, y, w, h = res.det.bbox
+            if best.employee_id:
+                self.db.add_event(best.employee_id, event_type, 1.0 - best.score, best.liveness, self.cfg.device.device_id)
+                self._last_punch_emp = best.employee_id
+                self._last_punch_ts = now
+                # Prepare toast data
+                name = next((e['name'] for e in self.db.list_employees() if e['id'] == best.employee_id), best.employee_id)
+                ts_str = QtCore.QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
+                self._toast_text = f"{name}  {event_type}  {ts_str}"
+                self._toast_color = (0, 200, 0) if event_type == "IN" else (0, 0, 200)
+                # Capture face thumbnail
+                x, y, w, h = best.det.bbox if best.det is not None else (0, 0, 0, 0)
                 x0 = max(0, x)
                 y0 = max(0, y)
                 x1 = min(frame.shape[1], x + w)
                 y1 = min(frame.shape[0], y + h)
                 face = frame[y0:y1, x0:x1]
-                if face.size > 0:
-                    self._toast_face = cv2.resize(face, (160, 160), interpolation=cv2.INTER_AREA)
-                else:
-                    self._toast_face = None
-            else:
-                self._toast_face = None
-            self._toast_until = now + 3.0
-            # Render immediately
-            self._render_toast(disp)
-            self._set_pixmap(disp, self._toast_text, pen_color=self._toast_color)
-            return
-        elif res.is_live and res.det is not None:
-            text = f"Unknown face (live={res.liveness:.2f})"
-        elif res.det is not None:
-            text = f"Rejected: liveness {res.liveness:.2f}"
+                self._toast_face = cv2.resize(face, (160, 160), interpolation=cv2.INTER_AREA) if face.size > 0 else None
+                self._toast_until = now + 3.0
+                self._render_toast(disp)
+                self._set_pixmap(disp, self._toast_text, pen_color=self._toast_color)
+                return
         self._set_pixmap(disp, text)
 
     def _set_pixmap(self, frame_bgr: np.ndarray, text: str, pen_color: tuple[int, int, int] | None = None):

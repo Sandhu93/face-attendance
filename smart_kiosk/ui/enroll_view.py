@@ -247,11 +247,12 @@ class EnrollView(QtWidgets.QWidget):
         name = self.e_name.text().strip() or emp_id
         self.db.upsert_employee(emp_id, name, self.e_dept.text().strip(), self.e_email.text().strip(), self.e_phone.text().strip())
         # Store all captured templates
+        ver = self.pipeline.embedder_version()
         for emb in self.templates:
             from smart_kiosk.app.utils import compress_embedding
 
             blob = compress_embedding(emb)
-            self.db.add_template(emp_id, blob, version=1, quality=1.0)
+            self.db.add_template(emp_id, blob, version=ver, quality=1.0)
         self.templates.clear()
         self.msg.setText("Saved employee")
         self._update_buttons()

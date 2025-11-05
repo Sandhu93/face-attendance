@@ -12,3 +12,4 @@ requests>=2.31
 tenacity>=8.2
 psutil>=5.9
 pytest>=7.4
+onnxruntime
